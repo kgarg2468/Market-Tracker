@@ -1,0 +1,68 @@
+ Observed Problem
+Every time I run an analysis for any stock (e.g., AAPL) and choose any period (e.g., 60 days), the dashboard returns the warning:
+
+pgsql
+Copy
+Edit
+Limited data available for [STOCK]. Only [N] days of data found. Some indicators may be less reliable.
+Example: For AAPL with a 60-day analysis period, it says:
+"Only 41 days of data found," even though AAPL clearly has decades of historical data.
+
+❌ Root Cause (Suspected)
+yfinance.download() default interval: The data may be downloaded using an incorrect interval (e.g., "1m" or "1d" with limited period instead of start/end dates), which restricts how far back it goes.
+
+Incorrect use of period vs start/end: If you pass only period=60, yfinance may interpret it as 60 calendar days or use a restricted API format, often leading to fewer rows than expected.
+
+Missing error handling for holidays or weekends: Stock markets are not open every calendar day, so requesting 60 calendar days doesn’t yield 60 rows.
+
+✅ Step-by-Step Fix Instructions
+🧩 Step 1: Fix the Data Download Function
+Open utils/data_loader.py or wherever yfinance.download() is used.
+Change the function to explicitly use start and end dates rather than just a "period".
+
+python
+Copy
+Edit
+from datetime import datetime, timedelta
+import yfinance as yf
+
+def get_data(ticker, days=60):
+    end = datetime.today()
+    start = end - timedelta(days=days * 2)  # Extend range to account for weekends/holidays
+    df = yf.download(ticker, start=start.strftime('%Y-%m-%d'), end=end.strftime('%Y-%m-%d'), interval="1d")
+    df.dropna(inplace=True)
+    return df.tail(days)  # Trim to exact number of trading days
+🧩 Step 2: Update the Warning Logic
+In the section where the warning message is shown, update the logic:
+
+python
+Copy
+Edit
+if len(df) < requested_days:
+    warning = f"Only {len(df)} days of valid trading data found. Some indicators may be less reliable."
+else:
+    warning = None
+🧩 Step 3: Test With Known Tickers
+Use reliable tickers with long histories (e.g., AAPL, MSFT, SPY) and test for:
+
+30 days
+
+60 days
+
+100 days
+
+Confirm that enough data is returned, and that the warning only shows when real trading days are missing.
+
+🚫 Bonus Bug: ta.volume.VolumeSMAIndicator Missing
+You're also using an invalid indicator in ta.volume:
+
+plaintext
+Copy
+Edit
+Error analyzing AAPL: module 'ta.volume' has no attribute 'VolumeSMAIndicator'
+Fix: This class doesn't exist in ta (as of the latest version). Either remove it or use an alternative like:
+
+python
+Copy
+Edit
+df['volume_sma_20'] = df['Volume'].rolling(window=20).mean()

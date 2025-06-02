@@ -39,7 +39,7 @@ def add_technical_indicators(df):
     df['BB_Middle'] = bb_indicator.bollinger_mavg()
     
     # Volume indicators
-    df['Volume_SMA'] = ta.volume.VolumeSMAIndicator(close=df['Close'], volume=df['Volume'], window=20).volume_sma()
+    df['Volume_SMA'] = df['Volume'].rolling(window=20).mean()
     
     # Stochastic Oscillator
     stoch_indicator = ta.momentum.StochasticOscillator(high=df['High'], low=df['Low'], close=df['Close'])

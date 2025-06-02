@@ -15,13 +15,18 @@ def get_stock_data(ticker, days=30):
         pandas.DataFrame: Stock data with OHLCV columns
     """
     try:
-        # Calculate date range
+        # Calculate date range - extend to account for weekends/holidays
         end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
+        start_date = end_date - timedelta(days=days * 2)  # Double the range to account for non-trading days
         
-        # Download data from Yahoo Finance
-        stock = yf.Ticker(ticker)
-        df = stock.history(start=start_date, end=end_date, interval='1d')
+        # Download data from Yahoo Finance using explicit date range
+        df = yf.download(
+            ticker, 
+            start=start_date.strftime('%Y-%m-%d'), 
+            end=end_date.strftime('%Y-%m-%d'), 
+            interval='1d',
+            progress=False
+        )
         
         if df.empty:
             st.error(f"No data available for ticker '{ticker}'. Please verify the ticker symbol.")
@@ -30,9 +35,14 @@ def get_stock_data(ticker, days=30):
         # Clean the data
         df = df.dropna()
         
-        # Ensure we have enough data points for technical indicators
-        if len(df) < 50:
-            st.warning(f"Limited data available for {ticker}. Only {len(df)} days of data found. Some indicators may be less reliable.")
+        # Get the most recent trading days up to the requested amount
+        df = df.tail(days) if len(df) > days else df
+        
+        # Check if we have sufficient data for technical indicators
+        if len(df) < days:
+            st.warning(f"Only {len(df)} trading days of data found for {ticker} (requested {days} days). Some indicators may be less reliable due to weekends, holidays, or limited trading history.")
+        elif len(df) < 50:
+            st.warning(f"Limited data available for {ticker}. Only {len(df)} days of data found. Some technical indicators may be less reliable with fewer than 50 data points.")
         
         return df
         
