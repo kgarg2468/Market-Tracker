@@ -1,0 +1,141 @@
+Step 1: Define the Project Scope
+Goal: Analyze today's market data and generate statistics + trade recommendations for tomorrow.
+
+Inputs: Daily stock price data, indicators, volume, and optionally news sentiment.
+
+Outputs: A report (JSON/CSV/HTML) with key stats and buy/sell/hold recommendations.
+
+Step 2: Set Up the Replit Project
+Environment: Python (with replit.nix for dependencies)
+
+File Structure:
+
+lua
+Copy
+Edit
+/trading-algo/
+├── main.py
+├── data/
+├── models/
+├── utils/
+├── config/
+├── output/
+└── requirements.txt
+Step 3: Install Dependencies
+Add this to requirements.txt:
+
+txt
+Copy
+Edit
+yfinance
+pandas
+numpy
+ta
+scikit-learn
+xgboost
+matplotlib
+requests
+fastapi
+uvicorn
+Step 4: Pull Historical + Today’s Market Data
+In utils/data_loader.py:
+
+python
+Copy
+Edit
+import yfinance as yf
+import pandas as pd
+from datetime import datetime, timedelta
+
+def get_data(ticker, days=30):
+    end = datetime.today()
+    start = end - timedelta(days=days)
+    df = yf.download(ticker, start=start, end=end)
+    return df
+Step 5: Calculate Technical Indicators
+In utils/indicators.py:
+
+python
+Copy
+Edit
+import ta
+
+def add_indicators(df):
+    df['rsi'] = ta.momentum.RSIIndicator(df['Close']).rsi()
+    df['macd'] = ta.trend.MACD(df['Close']).macd_diff()
+    df['sma_20'] = df['Close'].rolling(window=20).mean()
+    df['sma_50'] = df['Close'].rolling(window=50).mean()
+    return df
+Step 6: Build Predictive Model (Optional, Later Stage)
+In models/xgb_model.py:
+
+Use XGBoost or LSTM to predict next-day movement.
+
+Features: indicators, price, volume.
+
+Step 7: Decision Rules
+In main.py:
+
+python
+Copy
+Edit
+def generate_signals(df):
+    latest = df.iloc[-1]
+    signals = []
+
+    if latest['rsi'] < 30 and latest['macd'] > 0:
+        signals.append("BUY")
+
+    elif latest['rsi'] > 70 and latest['macd'] < 0:
+        signals.append("SELL")
+    
+    else:
+        signals.append("HOLD")
+
+    return signals
+Step 8: Output the Report
+python
+Copy
+Edit
+def generate_report(ticker, df, signal):
+    today = datetime.today().strftime('%Y-%m-%d')
+    report = {
+        "date": today,
+        "ticker": ticker,
+        "close_price": df['Close'].iloc[-1],
+        "rsi": df['rsi'].iloc[-1],
+        "macd": df['macd'].iloc[-1],
+        "signal": signal
+    }
+    return report
+Step 9: Build a FastAPI Endpoint (Optional UI)
+In main.py:
+
+python
+Copy
+Edit
+from fastapi import FastAPI
+app = FastAPI()
+
+@app.get("/analyze/{ticker}")
+def analyze(ticker: str):
+    df = get_data(ticker)
+    df = add_indicators(df)
+    signal = generate_signals(df)
+    report = generate_report(ticker, df, signal)
+    return report
+Step 10: Automate End-of-Day Execution
+Use a scheduler like cron (or Replit's Task Scheduler) to run main.py at market close (e.g., 4:01 PM EST).
+
+✅ Example Result (JSON)
+json
+Copy
+Edit
+{
+  "date": "2025-06-02",
+  "ticker": "AAPL",
+  "close_price": 191.33,
+  "rsi": 27.5,
+  "macd": 0.53,
+  "signal": "BUY"
+}
