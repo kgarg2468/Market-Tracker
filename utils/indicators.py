@@ -15,45 +15,51 @@ def add_technical_indicators(df):
     # Make a copy to avoid modifying the original DataFrame
     df = df.copy()
     
+    # Ensure all price columns are 1D pandas Series (flatten if needed)
+    close_series = pd.Series(df['Close'].values.flatten(), index=df.index)
+    high_series = pd.Series(df['High'].values.flatten(), index=df.index)
+    low_series = pd.Series(df['Low'].values.flatten(), index=df.index)
+    volume_series = pd.Series(df['Volume'].values.flatten(), index=df.index)
+    
     # RSI (Relative Strength Index)
-    df['RSI'] = ta.momentum.RSIIndicator(close=df['Close'], window=14).rsi()
+    df['RSI'] = ta.momentum.RSIIndicator(close=close_series, window=14).rsi()
     
     # MACD (Moving Average Convergence Divergence)
-    macd_indicator = ta.trend.MACD(close=df['Close'])
+    macd_indicator = ta.trend.MACD(close=close_series)
     df['MACD'] = macd_indicator.macd()
     df['MACD_Signal'] = macd_indicator.macd_signal()
     df['MACD_Histogram'] = macd_indicator.macd_diff()
     
     # Simple Moving Averages
-    df['SMA_20'] = ta.trend.SMAIndicator(close=df['Close'], window=20).sma_indicator()
-    df['SMA_50'] = ta.trend.SMAIndicator(close=df['Close'], window=50).sma_indicator()
+    df['SMA_20'] = ta.trend.SMAIndicator(close=close_series, window=20).sma_indicator()
+    df['SMA_50'] = ta.trend.SMAIndicator(close=close_series, window=50).sma_indicator()
     
     # Exponential Moving Averages
-    df['EMA_12'] = ta.trend.EMAIndicator(close=df['Close'], window=12).ema_indicator()
-    df['EMA_26'] = ta.trend.EMAIndicator(close=df['Close'], window=26).ema_indicator()
+    df['EMA_12'] = ta.trend.EMAIndicator(close=close_series, window=12).ema_indicator()
+    df['EMA_26'] = ta.trend.EMAIndicator(close=close_series, window=26).ema_indicator()
     
     # Bollinger Bands
-    bb_indicator = ta.volatility.BollingerBands(close=df['Close'], window=20, window_dev=2)
+    bb_indicator = ta.volatility.BollingerBands(close=close_series, window=20, window_dev=2)
     df['BB_Upper'] = bb_indicator.bollinger_hband()
     df['BB_Lower'] = bb_indicator.bollinger_lband()
     df['BB_Middle'] = bb_indicator.bollinger_mavg()
     
     # Volume indicators
-    df['Volume_SMA'] = df['Volume'].rolling(window=20).mean()
+    df['Volume_SMA'] = volume_series.rolling(window=20).mean()
     
     # Stochastic Oscillator
-    stoch_indicator = ta.momentum.StochasticOscillator(high=df['High'], low=df['Low'], close=df['Close'])
+    stoch_indicator = ta.momentum.StochasticOscillator(high=high_series, low=low_series, close=close_series)
     df['Stoch_K'] = stoch_indicator.stoch()
     df['Stoch_D'] = stoch_indicator.stoch_signal()
     
     # Average True Range (ATR) for volatility
-    df['ATR'] = ta.volatility.AverageTrueRange(high=df['High'], low=df['Low'], close=df['Close']).average_true_range()
+    df['ATR'] = ta.volatility.AverageTrueRange(high=high_series, low=low_series, close=close_series).average_true_range()
     
     # Williams %R
-    df['Williams_R'] = ta.momentum.WilliamsRIndicator(high=df['High'], low=df['Low'], close=df['Close']).williams_r()
+    df['Williams_R'] = ta.momentum.WilliamsRIndicator(high=high_series, low=low_series, close=close_series).williams_r()
     
     # Price Rate of Change
-    df['ROC'] = ta.momentum.ROCIndicator(close=df['Close'], window=10).roc()
+    df['ROC'] = ta.momentum.ROCIndicator(close=close_series, window=10).roc()
     
     # Remove any rows with NaN values that might result from indicator calculations
     df = df.dropna()

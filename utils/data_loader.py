@@ -32,6 +32,13 @@ def get_stock_data(ticker, days=30):
             st.error(f"No data available for ticker '{ticker}'. Please verify the ticker symbol.")
             return None
         
+        # Handle MultiIndex columns (flatten if necessary)
+        if df.columns.nlevels > 1:
+            df.columns = df.columns.droplevel(1)
+        
+        # Ensure column names are standardized
+        df.columns = [col.title() for col in df.columns]
+        
         # Clean the data
         df = df.dropna()
         
