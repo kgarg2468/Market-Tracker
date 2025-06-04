@@ -11,6 +11,7 @@ from utils.data_loader import get_stock_data
 from utils.indicators import add_technical_indicators
 from utils.signals import generate_trading_signals
 from utils.report_generator import generate_report, export_to_csv, export_to_json
+from utils.ml_predictor import StockMLPredictor
 
 # Configure page
 st.set_page_config(
@@ -24,66 +25,75 @@ st.set_page_config(
 st.title("📈 Trading Algorithm Dashboard")
 st.markdown("Analyze stock market data and get buy/sell/hold recommendations using technical indicators")
 
-# Sidebar for inputs
-st.sidebar.header("Configuration")
+# Create tabs for different features
+tab1, tab2 = st.tabs(["Single Stock Analysis", "ML Top 50 Predictions"])
 
-# Stock ticker input
-ticker = st.sidebar.text_input(
-    "Stock Ticker", 
-    value="AAPL",
-    help="Enter a valid stock ticker symbol (e.g., AAPL, GOOGL, MSFT)"
-).upper()
+# Initialize ML predictor in session state
+if 'ml_predictor' not in st.session_state:
+    st.session_state.ml_predictor = StockMLPredictor()
 
-# Date range selection
-days_back = st.sidebar.selectbox(
-    "Analysis Period",
-    options=[30, 60, 90, 180, 365],
-    index=1,
-    help="Number of days of historical data to analyze"
-)
+with tab1:
+    # Create sidebar within tab
+    with st.sidebar:
+        st.header("Configuration")
+        
+        # Stock ticker input
+        ticker = st.text_input(
+            "Stock Ticker", 
+            value="AAPL",
+            help="Enter a valid stock ticker symbol (e.g., AAPL, GOOGL, MSFT)"
+        ).upper()
+        
+        # Date range selection
+        days_back = st.selectbox(
+            "Analysis Period",
+            options=[30, 60, 90, 180, 365],
+            index=1,
+            help="Number of days of historical data to analyze"
+        )
+        
+        # Analysis button
+        analyze_button = st.button("🔍 Analyze Stock", type="primary")
+    
+    # Initialize session state
+    if 'analysis_data' not in st.session_state:
+        st.session_state.analysis_data = None
 
-# Analysis button
-analyze_button = st.sidebar.button("🔍 Analyze Stock", type="primary")
-
-# Initialize session state
-if 'analysis_data' not in st.session_state:
-    st.session_state.analysis_data = None
-
-# Main analysis logic
-if analyze_button or st.session_state.analysis_data is not None:
-    if analyze_button:
-        # Show loading spinner
-        with st.spinner(f"Fetching and analyzing data for {ticker}..."):
-            try:
-                # Fetch stock data
-                df = get_stock_data(ticker, days_back)
-                
-                if df is None or df.empty:
-                    st.error(f"❌ No data found for ticker '{ticker}'. Please check the ticker symbol and try again.")
+    # Main analysis logic
+    if analyze_button or st.session_state.analysis_data is not None:
+        if analyze_button:
+            # Show loading spinner
+            with st.spinner(f"Fetching and analyzing data for {ticker}..."):
+                try:
+                    # Fetch stock data
+                    df = get_stock_data(ticker, days_back)
+                    
+                    if df is None or df.empty:
+                        st.error(f"❌ No data found for ticker '{ticker}'. Please check the ticker symbol and try again.")
+                        st.session_state.analysis_data = None
+                        st.stop()
+                    
+                    # Add technical indicators
+                    df = add_technical_indicators(df)
+                    
+                    # Generate trading signals
+                    signals = generate_trading_signals(df)
+                    
+                    # Generate report
+                    report = generate_report(ticker, df, signals)
+                    
+                    # Store in session state
+                    st.session_state.analysis_data = {
+                        'df': df,
+                        'signals': signals,
+                        'report': report,
+                        'ticker': ticker
+                    }
+                    
+                except Exception as e:
+                    st.error(f"❌ Error analyzing {ticker}: {str(e)}")
                     st.session_state.analysis_data = None
                     st.stop()
-                
-                # Add technical indicators
-                df = add_technical_indicators(df)
-                
-                # Generate trading signals
-                signals = generate_trading_signals(df)
-                
-                # Generate report
-                report = generate_report(ticker, df, signals)
-                
-                # Store in session state
-                st.session_state.analysis_data = {
-                    'df': df,
-                    'signals': signals,
-                    'report': report,
-                    'ticker': ticker
-                }
-                
-            except Exception as e:
-                st.error(f"❌ Error analyzing {ticker}: {str(e)}")
-                st.session_state.analysis_data = None
-                st.stop()
     
     # Display results if data exists
     if st.session_state.analysis_data is not None:
