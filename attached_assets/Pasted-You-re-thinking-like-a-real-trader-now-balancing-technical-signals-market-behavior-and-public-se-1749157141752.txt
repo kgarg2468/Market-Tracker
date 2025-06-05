@@ -1,0 +1,92 @@
+You’re thinking like a real trader now — balancing technical signals, market behavior, and public sentiment. Let's level up your Replit app with a descriptive message to integrate:
+
+📩 New Feature Request for Replit: Sentiment-Aware Trading Suggestions
+Subject: Upgrade Trading Bot with Sentiment & Controversy Analysis
+
+Hi team,
+
+The trading bot is doing well with numeric-based predictions, but after a bad experience with Tesla (where it advised buying due to a +2% potential but the stock dropped ~$40 the next day), I want to add two important layers of complexity to prevent such misjudgments:
+
+🧠 1. Predicting Future Recovery or Further Decline
+Add a Machine Learning model or logic that does the following when a stock tanks after a "BUY" suggestion:
+
+Analyze post-drop behavior:
+
+Is this dip a normal pullback or start of a downward trend?
+
+Pull in:
+
+Historical rebound patterns
+
+Volume spikes
+
+RSI (Relative Strength Index): Is it oversold (<30)?
+
+Support levels: Is it near a long-term support price?
+
+Output:
+
+A recommendation: "Likely Recovery", "Likely Continued Drop", or "Uncertain"
+
+This affects the SELL/HOLD recommendation
+
+🔥 2. Add Real-World Controversy and Sentiment Signals
+Many bad trades happen not because of numbers, but because of news and public sentiment (e.g., Elon Musk’s controversial tweets).
+
+Add logic to track news and social sentiment:
+
+Use APIs or news scraping (free options include NewsAPI, Google News RSS, or Twitter/X if accessible)
+
+Look for keywords in recent headlines:
+
+Controversy: "boycott", "CEO statement", "probe", "SEC", "fraud", "lawsuit"
+
+Positive: "record revenue", "AI partnership", "approval"
+
+Assign a sentiment score to each stock, for example:
+
+json
+Copy
+Edit
+{
+  "TSLA": {
+    "sentiment": -0.75,
+    "risk_keywords": ["boycott", "politics", "Musk tweet"],
+    "confidence": "Low"
+  }
+}
+➕ Extra:
+Track Reddit + Twitter mentions if possible
+
+Stocks with high controversy or negative public view should:
+
+Not be recommended
+
+Or be flagged with: "⚠️ High Risk: Public sentiment declining"
+
+📤 3. Updated Output Example
+yaml
+Copy
+Edit
+📊 Recommendation Summary: June 3, 2025
+
+TSLA: 📉 Down -6.8% since buy signal (172 → 132)
+→ Sentiment: 🔴 Negative (Controversial CEO remarks, boycott trending)
+→ RSI: 23 (Oversold)
+→ Prediction: High volatility, uncertain short-term rebound
+→ ⚠️ SELL or HOLD with caution
+
+MSFT: 🟢 Buy Signal
+→ Sentiment: Positive (AI announcement, strong earnings)
+→ Confidence: High
+→ Predicted return: +4.1% in 3 days
+⏳ Optional Future Upgrade
+Train an LSTM or Prophet model to:
+
+Predict next-day or next-5-day movement after dips
+
+Compare sentiment and price momentum together
+
+Let me know if you'd like help writing a basic Python script for real-time sentiment scoring using NewsAPI or Google News search. Also happy to build an oversold-recovery ML model using Tesla's historical data.
+
+Thanks again

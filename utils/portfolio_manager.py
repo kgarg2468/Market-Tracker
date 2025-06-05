@@ -83,7 +83,7 @@ class PortfolioManager:
             
             if len(tickers) == 1:
                 # Single ticker returns different structure
-                return {tickers[0]: float(data['Close'].iloc[-1])}
+                return {tickers[0]: float(data['Close'].iloc[-1].iloc[0] if hasattr(data['Close'].iloc[-1], 'iloc') else data['Close'].iloc[-1])}
             else:
                 # Multiple tickers
                 current_prices = {}

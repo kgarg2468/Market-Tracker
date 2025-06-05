@@ -13,6 +13,7 @@ from utils.signals import generate_trading_signals
 from utils.report_generator import generate_report, export_to_csv, export_to_json
 from utils.ml_predictor import StockMLPredictor
 from utils.portfolio_manager import PortfolioManager
+from utils.sentiment_analyzer import SentimentAnalyzer
 
 # Configure page
 st.set_page_config(
@@ -35,6 +36,9 @@ if 'ml_predictor' not in st.session_state:
 
 if 'portfolio_manager' not in st.session_state:
     st.session_state.portfolio_manager = PortfolioManager()
+
+if 'sentiment_analyzer' not in st.session_state:
+    st.session_state.sentiment_analyzer = SentimentAnalyzer()
 
 with tab1:
     # Create sidebar within tab
@@ -185,6 +189,120 @@ with tab1:
                 st.markdown("**Analysis:**")
                 for reason in reasoning:
                     st.markdown(f"• {reason}")
+            
+            # Enhanced Sentiment Analysis Section
+            st.subheader("🧠 Enhanced AI Analysis")
+            
+            with st.spinner("Analyzing news sentiment and market conditions..."):
+                try:
+                    # Calculate daily price change
+                    daily_change = ((latest_data['Close'] - df.iloc[-2]['Close']) / df.iloc[-2]['Close'] * 100) if len(df) > 1 else 0
+                    
+                    # Generate enhanced recommendation
+                    enhanced_analysis = st.session_state.sentiment_analyzer.generate_enhanced_recommendation(
+                        ticker=ticker,
+                        technical_signal=primary_signal,
+                        current_price=latest_data['Close'],
+                        price_change_pct=daily_change
+                    )
+                    
+                    # Display enhanced recommendation
+                    col1, col2 = st.columns([1, 1])
+                    
+                    with col1:
+                        # Final recommendation with confidence
+                        rec_color = {
+                            'STRONG BUY': '🟢',
+                            'BUY': '🟢', 
+                            'HOLD': '🟡',
+                            'SELL': '🔴',
+                            'STRONG SELL': '🔴'
+                        }
+                        
+                        st.markdown(f"### {rec_color.get(enhanced_analysis['final_recommendation'], '🟡')} **{enhanced_analysis['final_recommendation']}**")
+                        st.markdown(f"**AI Confidence:** {enhanced_analysis['confidence_level']}")
+                        
+                        # Risk factors
+                        if enhanced_analysis['risk_factors']:
+                            st.markdown("**⚠️ Risk Factors:**")
+                            for risk in enhanced_analysis['risk_factors']:
+                                st.markdown(f"• {risk}")
+                    
+                    with col2:
+                        # Enhanced reasoning
+                        st.markdown("**AI Reasoning:**")
+                        for reason in enhanced_analysis['reasoning']:
+                            st.markdown(f"• {reason}")
+                    
+                    # News Sentiment Analysis
+                    sentiment = enhanced_analysis['sentiment_analysis']
+                    if sentiment['total_headlines'] > 0:
+                        st.subheader("📰 News Sentiment Analysis")
+                        
+                        col1, col2, col3, col4 = st.columns(4)
+                        
+                        with col1:
+                            st.metric("News Sentiment", sentiment['sentiment_summary'])
+                        
+                        with col2:
+                            st.metric("Headlines Analyzed", sentiment['total_headlines'])
+                        
+                        with col3:
+                            sentiment_score = sentiment['overall_sentiment']
+                            st.metric("Sentiment Score", f"{sentiment_score:+.2f}", 
+                                    help="Range: -1.0 (very negative) to +1.0 (very positive)")
+                        
+                        with col4:
+                            controversy = sentiment['controversy_score']
+                            color = "normal" if controversy < 30 else "inverse"
+                            st.metric("Controversy Level", f"{controversy:.1f}%", 
+                                    help="Percentage of news mentioning controversies")
+                        
+                        # News breakdown
+                        if sentiment['positive_count'] + sentiment['negative_count'] > 0:
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                fig = go.Figure(data=go.Bar(
+                                    x=['Positive', 'Negative', 'Neutral'],
+                                    y=[sentiment['positive_count'], sentiment['negative_count'], sentiment['neutral_count']],
+                                    marker_color=['green', 'red', 'gray']
+                                ))
+                                fig.update_layout(title="News Sentiment Breakdown", yaxis_title="Number of Articles")
+                                st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Recovery Analysis (if price dropped significantly)
+                    recovery = enhanced_analysis['recovery_analysis']
+                    if recovery:
+                        st.subheader("🔄 Recovery Potential Analysis")
+                        
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            recovery_prob = recovery['recovery_probability']
+                            color = "normal" if recovery_prob > 0.6 else "inverse"
+                            st.metric("Recovery Probability", f"{recovery_prob:.1%}", 
+                                    help="Likelihood of price recovery based on technical indicators")
+                            
+                            st.metric("Analysis Confidence", recovery['confidence'])
+                        
+                        with col2:
+                            if 'factors' in recovery and recovery['factors']:
+                                st.markdown("**Recovery Factors:**")
+                                for factor in recovery['factors']:
+                                    st.markdown(f"• {factor}")
+                            
+                            # Technical indicators supporting recovery
+                            if 'rsi' in recovery:
+                                rsi_val = recovery['rsi']
+                                if rsi_val < 30:
+                                    st.success(f"RSI Oversold: {rsi_val:.1f} (Strong buy signal)")
+                                elif rsi_val < 40:
+                                    st.info(f"RSI Low: {rsi_val:.1f} (Potential buy signal)")
+                
+                except Exception as e:
+                    st.warning("Enhanced analysis temporarily unavailable. Using standard technical analysis.")
+                    st.info("For full sentiment analysis including news and controversy detection, please provide a NewsAPI key in the settings.")
             
             # Price chart with indicators
             st.subheader("📈 Price Chart with Technical Indicators")
