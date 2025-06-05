@@ -12,6 +12,7 @@ from utils.indicators import add_technical_indicators
 from utils.signals import generate_trading_signals
 from utils.report_generator import generate_report, export_to_csv, export_to_json
 from utils.ml_predictor import StockMLPredictor
+from utils.portfolio_manager import PortfolioManager
 
 # Configure page
 st.set_page_config(
@@ -26,11 +27,14 @@ st.title("📈 Trading Algorithm Dashboard")
 st.markdown("Analyze stock market data and get buy/sell/hold recommendations using technical indicators")
 
 # Create tabs for different features
-tab1, tab2 = st.tabs(["Single Stock Analysis", "ML Top 50 Predictions"])
+tab1, tab2, tab3 = st.tabs(["Single Stock Analysis", "ML Top 50 Predictions", "Portfolio Tracker"])
 
-# Initialize ML predictor in session state
+# Initialize components in session state
 if 'ml_predictor' not in st.session_state:
     st.session_state.ml_predictor = StockMLPredictor()
+
+if 'portfolio_manager' not in st.session_state:
+    st.session_state.portfolio_manager = PortfolioManager()
 
 with tab1:
     # Create sidebar within tab
@@ -395,6 +399,239 @@ with tab2:
         
         **Disclaimer:** Predictions are based on historical patterns and should not be considered as financial advice.
         """)
+
+with tab3:
+    st.header("📊 Portfolio Tracker & Sell Alerts")
+    st.markdown("Track your positions and get automated sell signals based on targets, stop losses, and technical analysis")
+    
+    # Portfolio summary at the top
+    portfolio_summary = st.session_state.portfolio_manager.get_portfolio_summary()
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric(
+            "Total Positions", 
+            portfolio_summary['total_positions'],
+            delta=f"Active: {portfolio_summary['active_positions']}"
+        )
+    
+    with col2:
+        st.metric(
+            "Total Invested", 
+            f"${portfolio_summary['total_invested']:,.2f}"
+        )
+    
+    with col3:
+        st.metric(
+            "Current Value", 
+            f"${portfolio_summary['current_value']:,.2f}",
+            delta=f"${portfolio_summary['total_return']:+,.2f}"
+        )
+    
+    with col4:
+        color = "normal" if portfolio_summary['percent_return'] >= 0 else "inverse"
+        st.metric(
+            "Total Return", 
+            f"{portfolio_summary['percent_return']:+.2f}%",
+            delta=None
+        )
+    
+    # Sell Alerts Section
+    st.subheader("🚨 Sell Alerts")
+    sell_signals = st.session_state.portfolio_manager.generate_sell_signals()
+    
+    if sell_signals:
+        st.warning(f"You have {len(sell_signals)} sell alert(s)!")
+        
+        for signal in sell_signals:
+            with st.expander(f"🔔 {signal['ticker']} - {signal['signal']}", expanded=True):
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.write(f"**Reason:** {signal['reason']}")
+                    st.write(f"**Current Price:** ${signal['current_price']:.2f}")
+                
+                with col2:
+                    st.write(f"**Return:** {signal['percent_return']:+.2f}%")
+                    st.write(f"**Days Held:** {signal['days_held']}")
+                
+                with col3:
+                    if st.button(f"Mark as Sold", key=f"sell_{signal['ticker']}_{signal['position']['buy_date']}"):
+                        st.session_state.portfolio_manager.update_position_status(
+                            signal['ticker'], 
+                            signal['position']['buy_date'], 
+                            'SOLD', 
+                            signal['reason']
+                        )
+                        st.success(f"Marked {signal['ticker']} as sold!")
+                        st.rerun()
+    else:
+        st.success("No sell alerts at this time")
+    
+    # Add new position section
+    st.subheader("➕ Add New Position")
+    
+    with st.form("add_position_form"):
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            new_ticker = st.text_input("Stock Ticker", placeholder="e.g., AAPL").upper()
+            new_buy_price = st.number_input("Buy Price ($)", min_value=0.01, step=0.01)
+            new_shares = st.number_input("Number of Shares", min_value=0.01, step=0.01)
+        
+        with col2:
+            new_buy_date = st.date_input("Buy Date", value=datetime.now().date())
+            new_target_return = st.number_input("Target Return (%)", value=10.0, step=0.1)
+            new_stop_loss = st.number_input("Stop Loss (%)", value=-5.0, step=0.1)
+        
+        with col3:
+            new_hold_days = st.number_input("Max Hold Days", value=30, min_value=1, step=1)
+            st.write("")  # Spacing
+            add_position_button = st.form_submit_button("Add Position", type="primary")
+        
+        if add_position_button and new_ticker and new_buy_price > 0 and new_shares > 0:
+            st.session_state.portfolio_manager.add_position(
+                ticker=new_ticker,
+                buy_price=new_buy_price,
+                buy_date=str(new_buy_date),
+                shares=new_shares,
+                target_return=new_target_return,
+                stop_loss=new_stop_loss,
+                hold_days=new_hold_days
+            )
+            st.success(f"Added {new_shares} shares of {new_ticker} to portfolio!")
+            st.rerun()
+    
+    # Current positions table
+    st.subheader("📋 Current Positions")
+    
+    portfolio_details = st.session_state.portfolio_manager.get_portfolio_details()
+    
+    if portfolio_details:
+        # Filter controls
+        col1, col2 = st.columns(2)
+        with col1:
+            show_inactive = st.checkbox("Show inactive positions", value=False)
+        with col2:
+            refresh_button = st.button("🔄 Refresh Prices")
+        
+        # Filter data
+        if not show_inactive:
+            portfolio_details = [pos for pos in portfolio_details if pos['status'] == 'ACTIVE']
+        
+        if portfolio_details:
+            # Create DataFrame for display
+            display_data = []
+            for pos in portfolio_details:
+                display_data.append({
+                    'Ticker': pos['ticker'],
+                    'Buy Date': pos['buy_date'],
+                    'Buy Price': f"${pos['buy_price']:.2f}",
+                    'Shares': f"{pos['shares']:.2f}",
+                    'Current Price': f"${pos['current_price']:.2f}" if pos['current_price'] else "N/A",
+                    'Days Held': pos['days_held'] if pos['days_held'] else "N/A",
+                    'Return (%)': f"{pos['percent_return']:+.2f}%" if pos['percent_return'] else "N/A",
+                    'Total Return': f"${pos['total_return']:+,.2f}" if pos['total_return'] else "N/A",
+                    'Current Value': f"${pos['current_value']:,.2f}" if pos['current_value'] else "N/A",
+                    'Target (%)': f"{pos['target_return']:.1f}%" if pos['target_return'] else "N/A",
+                    'Stop Loss (%)': f"{pos['stop_loss']:.1f}%" if pos['stop_loss'] else "N/A",
+                    'Max Days': pos['hold_days'] if pos['hold_days'] else "N/A",
+                    'Status': pos['status']
+                })
+            
+            df_display = pd.DataFrame(display_data)
+            st.dataframe(df_display, use_container_width=True)
+            
+            # Position management
+            st.subheader("🔧 Manage Positions")
+            
+            # Remove position
+            with st.expander("Remove Position"):
+                remove_col1, remove_col2, remove_col3 = st.columns(3)
+                
+                with remove_col1:
+                    remove_ticker = st.selectbox(
+                        "Select Ticker to Remove",
+                        options=[pos['ticker'] for pos in portfolio_details]
+                    )
+                
+                with remove_col2:
+                    # Filter buy dates for selected ticker
+                    ticker_positions = [pos for pos in portfolio_details if pos['ticker'] == remove_ticker]
+                    remove_buy_date = st.selectbox(
+                        "Select Buy Date",
+                        options=[pos['buy_date'] for pos in ticker_positions]
+                    )
+                
+                with remove_col3:
+                    st.write("")  # Spacing
+                    if st.button("Remove Position", type="secondary"):
+                        st.session_state.portfolio_manager.remove_position(remove_ticker, remove_buy_date)
+                        st.success(f"Removed {remove_ticker} position from {remove_buy_date}")
+                        st.rerun()
+            
+            # Export options
+            st.subheader("💾 Export Portfolio")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                portfolio_csv = st.session_state.portfolio_manager.export_portfolio_csv()
+                st.download_button(
+                    label="📊 Download Portfolio CSV",
+                    data=portfolio_csv,
+                    file_name=f"portfolio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
+            
+            with col2:
+                portfolio_json = json.dumps(portfolio_details, indent=2, default=str)
+                st.download_button(
+                    label="📄 Download Portfolio JSON",
+                    data=portfolio_json,
+                    file_name=f"portfolio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                    mime="application/json"
+                )
+        
+        else:
+            st.info("No positions match the current filter criteria")
+    
+    else:
+        st.info("No positions in portfolio. Add your first position above!")
+    
+    # Portfolio analytics
+    if portfolio_details:
+        st.subheader("📈 Portfolio Analytics")
+        
+        active_positions = [pos for pos in portfolio_details if pos['status'] == 'ACTIVE' and pos['percent_return'] is not None]
+        
+        if active_positions:
+            # Performance distribution
+            returns = [pos['percent_return'] for pos in active_positions]
+            tickers = [pos['ticker'] for pos in active_positions]
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Returns histogram
+                fig = go.Figure(data=go.Histogram(x=returns, nbinsx=10))
+                fig.update_layout(
+                    title="Portfolio Returns Distribution",
+                    xaxis_title="Return (%)",
+                    yaxis_title="Number of Positions"
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                # Individual position returns
+                fig = go.Figure(data=go.Bar(x=tickers, y=returns))
+                fig.update_layout(
+                    title="Individual Position Returns",
+                    xaxis_title="Ticker",
+                    yaxis_title="Return (%)"
+                )
+                st.plotly_chart(fig, use_container_width=True)
 
 # Footer
 st.markdown("---")
