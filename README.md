@@ -22,37 +22,40 @@ Tech Stack
 - Matplotlib / Plotly — For data visualization (if applicable in future versions)
 - FastAPI / Flask (future integration planned) — For turning this into a web app/API
 
-How to Run MarketTrackr Locally
+# How to Run MarketTrackr Locally
 ----------------------------------
 
 > Follow these steps to set up and run the project on your computer.
 
-Prerequisites:
+## Prerequisites:
 - Python 3.8 or higher
 - pip package manager
 - Git (optional)
 - A code editor (e.g., VS Code)
 
-Step-by-Step:
-1. Clone the Repo or Download ZIP
+## Step-by-Step:
+### 1. Clone the Repo or Download ZIP
    git clone https://github.com/your-username/MarketTrackr.git
    cd MarketTrackr
 
-2. Create & Activate Virtual Environment 
-   python -m venv venv
+### 2. Create & Activate Virtual Environment 
+  ``` bash
+   python -m venv venv 
    source venv/bin/activate   (On Windows: venv\Scripts\activate)
-
-3. Install Dependencies
+```
+### 3. Install Dependencies
+``` bash
    pip install -r requirements.txt
-
-5. Run the Application
+```
+### 5. Run the Application
+```bash
    streamlit run app.py
 
-   # if port 5000 is in use, run with a custom port:
+   #if port 5000 is in use, run with a custom port:
    streamlit run app.py --server.port 8502
+```
 
-
-6. View Output
+### 6. View Output
    The app will analyze your portfolio and output meaningful insights in the terminal.
 
 Future Plans
